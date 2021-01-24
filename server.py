@@ -32,7 +32,53 @@ class MyWebServer(socketserver.BaseRequestHandler):
     def handle(self):
         self.data = self.request.recv(1024).strip()
         print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+
+        # Split data to retrieve request method and request path
+        self.splitdata = self.data.splitlines()
+        self.request_method = self.splitdata[0].split()[0]
+        self.request_path = self.splitdata[0].split()[1]
+        print(self.request_path)
+        if not b'..' in self.request_path:
+            if self.check_request_method():
+                page = self.retrieve_page()
+                print("%s\n%s\n%s" % (self.splitdata, self.request_method, self.request_path))
+                self.request.sendall(page)
+            else:
+                self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\r\n", 'utf-8'))
+        else:
+            self.request.sendall(bytearray("HTTP/1.1 404 Not Found\r\n", 'utf-8'))
+
+    def retrieve_page(self):
+        result = b''
+        if b'.' in self.request_path:
+            try:
+                print("Filename in path")
+                page = open(b'./www' + self.request_path)
+                if b'css' in self.request_path:
+                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n" + page.read(), 'utf-8')
+                else:
+                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n" + page.read(), 'utf-8')
+                page.close()
+            except OSError as e:
+                result = b'HTTP/1.1 404 Not Found\r\n'
+        elif self.request_path.endswith(b'/'):
+            try:
+                self.request_path += b'index.html'
+                page = open(b'./www' + self.request_path)
+                result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n" + page.read(), 'utf-8')
+                page.close()
+            except OSError as e:
+                result = b'HTTP/1.1 404 Not Found\r\n'
+        else:
+            result = b'HTTP/1.1 301 Moved Permanently\r\n Location: http://127.0.0.1:8080' + self.request_path + b'/'
+                
+        return result
+    
+    def check_request_method(self):
+        if b'GET' in self.request_method:
+            return True
+        else:
+            return False
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
