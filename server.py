@@ -30,23 +30,27 @@ import socketserver
 class MyWebServer(socketserver.BaseRequestHandler):
     
     def handle(self):
-        self.data = self.request.recv(1024).strip()
+        self.data = self.request.recv(2048).strip()
         print ("Got a request of: %s\n" % self.data)
 
         # Split data to retrieve request method and request path
-        self.splitdata = self.data.splitlines()
-        self.request_method = self.splitdata[0].split()[0]
-        self.request_path = self.splitdata[0].split()[1]
+        self.request_method = b''
+        self.request_path = b'..'
+        if b'HTTP' in self.data:
+            self.splitdata = self.data.splitlines()
+            self.request_method = self.splitdata[0].split()[0]
+            self.request_path = self.splitdata[0].split()[1]
         print(self.request_path)
         if not b'..' in self.request_path:
             if self.check_request_method():
                 page = self.retrieve_page()
-                print("%s\n%s\n%s" % (self.splitdata, self.request_method, self.request_path))
+                #print("%s\n%s\n%s" % (self.splitdata, self.request_method, self.request_path))
+                print("RESPONSE: \n", page)
                 self.request.sendall(page)
             else:
-                self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\r\n", 'utf-8'))
+                self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\r\n\r\n", 'utf-8'))
         else:
-            self.request.sendall(bytearray("HTTP/1.1 404 Not Found\r\n", 'utf-8'))
+            self.request.sendall(bytearray("HTTP/1.1 404 Not Found\r\n\r\n", 'utf-8'))
 
     def retrieve_page(self):
         result = b''
@@ -55,22 +59,23 @@ class MyWebServer(socketserver.BaseRequestHandler):
                 print("Filename in path")
                 page = open(b'./www' + self.request_path)
                 if b'css' in self.request_path:
-                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n" + page.read(), 'utf-8')
+                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n" + page.read(), 'utf-8')
                 else:
-                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n" + page.read(), 'utf-8')
+                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + page.read(), 'utf-8')
                 page.close()
             except OSError as e:
-                result = b'HTTP/1.1 404 Not Found\r\n'
+                print("File Does not Exist")
+                result = b'HTTP/1.1 404 Not Found\r\n\r\n'
         elif self.request_path.endswith(b'/'):
             try:
                 self.request_path += b'index.html'
                 page = open(b'./www' + self.request_path)
-                result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n" + page.read(), 'utf-8')
+                result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + page.read(), 'utf-8')
                 page.close()
             except OSError as e:
-                result = b'HTTP/1.1 404 Not Found\r\n'
+                result = b'HTTP/1.1 404 Not Found\r\n\r\n'
         else:
-            result = b'HTTP/1.1 301 Moved Permanently\r\n Location: http://127.0.0.1:8080' + self.request_path + b'/'
+            result = b'HTTP/1.1 301 Moved Permanently\r\nLocation: http://127.0.0.1:8080' + self.request_path + b'/\r\n\r\n'
                 
         return result
     
