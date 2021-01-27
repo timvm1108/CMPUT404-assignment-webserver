@@ -36,54 +36,73 @@ class MyWebServer(socketserver.BaseRequestHandler):
         # Split data to retrieve request method and request path
         self.request_method = b''
         self.request_path = b'..'
+
+        # Check if we are receiving an HTTP request and then split by newline and then by spaces to isolate the path and method
         if b'HTTP' in self.data:
             self.splitdata = self.data.splitlines()
             self.request_method = self.splitdata[0].split()[0]
             self.request_path = self.splitdata[0].split()[1]
-        print(self.request_path)
+
+        # If request is empty or contains a '..', automatically send a 404 response
         if not b'..' in self.request_path:
+            # Check to make sure that request is GET method, otherwise return 405 response
             if self.check_request_method():
+                # Attempt to retrieve the document located at the path
                 page = self.retrieve_page()
-                #print("%s\n%s\n%s" % (self.splitdata, self.request_method, self.request_path))
-                print("RESPONSE: \n", page)
+
+                # Send response generated from trying to retrieve the document located at the path
                 self.request.sendall(page)
             else:
-                self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\r\n\r\n", 'utf-8'))
+                content = '405 Method Not Allowed'
+                content_length = len(content)
+                self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\r\nContent-Type: text/plain\r\nContent-Length: " + str(content_length) + "\r\nConnection: close\r\n\r\n" + content, 'utf-8'))
         else:
-            self.request.sendall(bytearray("HTTP/1.1 404 Not Found\r\n\r\n", 'utf-8'))
+            content = '404 Not Found'
+            content_length = len(content)
+            self.request.sendall(bytearray('HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: ' + str(content_length) + '\r\nConnection: close\r\n\r\n' + content, 'utf-8'))
 
     def retrieve_page(self):
         result = b''
+
+        # If request path contains a '.', then we know they are trying to access a specific file
         if b'.' in self.request_path:
             try:
-                print("Filename in path")
+                # Attempt to open document at the requested path
                 page = open(b'./www' + self.request_path)
                 content = page.read()
                 content_length = len(content)
+                # Differentiate whether a css or html file is being requested and format response correctly
                 if b'css' in self.request_path:
-                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: " + str(content_length) + "\r\n\r\n" + content, 'utf-8')
+                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: " + str(content_length) + "\r\nConnection: close\r\n\r\n" + content, 'utf-8')
                 else:
-                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + str(content_length) + "\r\n\r\n" + content, 'utf-8')
+                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + str(content_length) + "\r\nConnection: close\r\n\r\n" + content, 'utf-8')
                 page.close()
             except OSError as e:
-                print("File Does not Exist")
-                result = b'HTTP/1.1 404 Not Found\r\n\r\n'
+                # If we are unable to retrieve a file, then we assume they requested a file that is not located on the webserver and return 404
+                content = '404 Not Found'
+                content_length = len(content)
+                result = bytearray('HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: ' + str(content_length) + '\r\nConnection: close\r\n\r\n' + content, 'utf-8')
+        # If request path ends in '/', retrieve the html file located in the specified directory
         elif self.request_path.endswith(b'/'):
             try:
-                self.request_path += b'index.html'
+                self.request_path += b'index.html' # If no file is specified, add index.html and try to retrieve the file
                 page = open(b'./www' + self.request_path)
                 content = page.read()
                 content_length = len(content)
-                result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + str(content_length) + "\r\n\r\n" + content, 'utf-8')
+                result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + str(content_length) + "\r\nConnection: close\r\n\r\n" + content, 'utf-8')
                 page.close()
             except OSError as e:
-                result = b'HTTP/1.1 404 Not Found\r\n\r\n'
+                content = '404 Not Found'
+                content_length = len(content)
+                result = bytearray('HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: ' + str(content_length) + '\r\nConnection: close\r\n\r\n' + content, 'utf-8')
+        # If request path does not contain a '.' and does not end in a '/' then the path is not ended correctly, send a 301 to correct path to end in a '/'
         else:
-            result = b'HTTP/1.1 301 Moved Permanently\r\nLocation: http://127.0.0.1:8080' + self.request_path + b'/\r\n\r\n'
+            result = bytearray('HTTP/1.1 301 Moved Permanently\r\nLocation: http://127.0.0.1:8080' + self.request_path.decode() + '/\r\n\r\n', 'utf-8')
                 
         return result
     
     def check_request_method(self):
+        # Return True if HTTP method is GET
         if b'GET' in self.request_method:
             return True
         else:
