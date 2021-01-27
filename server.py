@@ -58,10 +58,12 @@ class MyWebServer(socketserver.BaseRequestHandler):
             try:
                 print("Filename in path")
                 page = open(b'./www' + self.request_path)
+                content = page.read()
+                content_length = len(content)
                 if b'css' in self.request_path:
-                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n" + page.read(), 'utf-8')
+                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: " + str(content_length) + "\r\n\r\n" + content, 'utf-8')
                 else:
-                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + page.read(), 'utf-8')
+                    result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + str(content_length) + "\r\n\r\n" + content, 'utf-8')
                 page.close()
             except OSError as e:
                 print("File Does not Exist")
@@ -70,7 +72,9 @@ class MyWebServer(socketserver.BaseRequestHandler):
             try:
                 self.request_path += b'index.html'
                 page = open(b'./www' + self.request_path)
-                result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + page.read(), 'utf-8')
+                content = page.read()
+                content_length = len(content)
+                result = bytearray("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + str(content_length) + "\r\n\r\n" + content, 'utf-8')
                 page.close()
             except OSError as e:
                 result = b'HTTP/1.1 404 Not Found\r\n\r\n'
