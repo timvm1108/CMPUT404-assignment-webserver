@@ -31,7 +31,8 @@ class MyWebServer(socketserver.BaseRequestHandler):
     
     def handle(self):
         self.data = self.request.recv(2048).strip()
-        print ("Got a request of: %s\n" % self.data)
+        # Remove following comment marker to print incoming requests
+        #print ("Got a request of: %s\n" % self.data)
 
         # Split data to retrieve request method and request path
         self.request_method = b''
@@ -97,9 +98,9 @@ class MyWebServer(socketserver.BaseRequestHandler):
                 result = bytearray('HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: ' + str(content_length) + '\r\nConnection: close\r\n\r\n' + content, 'utf-8')
         # If request path does not contain a '.' and does not end in a '/' then the path is not ended correctly, send a 301 to correct path to end in a '/'
         else:
-            content = '301 Moved Permanently, Location: http://localhost:8080' + self.request_path.decode() + '/'
+            content = '301 Moved Permanently, Location: http://127.0.0.1:8080' + self.request_path.decode() + '/'
             content_length = len(content)
-            result = bytearray('HTTP/1.1 301 Moved Permanently\r\nLocation: http://localhost:8080' + self.request_path.decode() + '/\r\nContent-Type: text/plain\r\nContent-Length: ' + str(content_length) + '\r\n\r\n' + content, 'utf-8')
+            result = bytearray('HTTP/1.1 301 Moved Permanently\r\nLocation: http://127.0.0.1:8080' + self.request_path.decode() + '/\r\nContent-Type: text/plain\r\nContent-Length: ' + str(content_length) + '\r\n\r\n' + content + '\r\n', 'utf-8')
                 
         return result
     
