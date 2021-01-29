@@ -29,3 +29,4 @@ Contributions post-fork made by:
 * rkang1
 * khairull
 * jnrizvi
+* fredford
